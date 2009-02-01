@@ -1,0 +1,62 @@
+function melon:GetInfo()
+  return {
+    name   = "Maplink",
+    desc   = "Searches all the different download sites.",
+    author = "MelTraX"
+  }
+end
+function melon:Initialize()
+  bot:AddCommand("search", Search, "searches for stuff")
+  bot:AddCommand("find", Search, "searches for stuff")
+  bot:AddCommand("map", Search, "searches for stuff")
+  bot:AddCommand("mod", Search, "searches for stuff")
+end
+function Search(from, params)
+  params = url_escape(params)
+  if params == nil then
+    bot:Reply("Please enter a search phrase (for example '!find tabula').")
+  elseif string.len(params) < 3 then
+    bot:Reply("Please enter a search string of 3 or more characters.")
+  else
+    SearchSite("http://spring.jobjol.nl/search_result.php?Submit=Search&search="..params.."&select_select=select_all",     'onClick="location\.href=\'([^\']+)\'"...............................................................................................................([^"]+)')
+    --SearchSite("http://blendax.informatik.uni-bremen.de/jan/spring/search.php?q="..params, 'href="(http[^"]+)">([^<]+)<')
+    --SearchSite("http://www.tasdownloads.com/index.php?find="..params, "href='http://[^/]+/([^']+)'>([^<]+)<")
+    --SearchSite("http://www.darkstars.co.uk/downloads/search.php?search="..params, '(downloads/view[^"]+)">([^<]+)<')
+    --SearchSite("http://spring-portal.com/index.php/docman/search_result?catid=0&ordering=newest&search_mode=any&search_phrase="..params.."&search_where%5B%5D=search_description&search_where%5B%5D=search_name", 'dm_name" href="http://spring.portal.com/(index.php/docman/doc_download/[0-9]+)[^"]+">([^<]+)<')
+  end
+end
+function SearchSite(url, regex)
+  local site = string.match(url, '(http://[^/]+/)')
+  bot:Reply("Search results from "..site..":")
+  local content = http.request(url)
+  if content ~= nil then
+    local success = false
+    for link, name in string.gmatch(content, regex) do
+      if string.match(link, 'http') == nil then
+        link = site .. link
+      end
+      if string.len(link) > 70 then 
+        local tinyurl = http.request("http://tinyurl.com/create.php?url="..link)
+        if tinyurl ~= nil then
+          local temp = string.match(tinyurl, 'name=tinyurl value="([^"]+)"')
+          link = temp
+        end
+      end
+      bot:Reply('- ' .. string.sub(string.format('%-30s', name),1,30) .. ' ' .. string.gsub(link, ' ', '%%20'))
+      success = true
+    end
+    if not success then
+      bot:Reply("Sorry, nothing found.")
+    end
+  else
+    bot:Reply("Sorry, an error occured while searching.")
+  end
+end
+function url_escape (str)
+  --[[ copied from http://www.redwiki.net/wiki/wiki/LUA/URLencode%B1%B8%C7%F6%C4%DA%B5%E5 (2008-09-30) ]]
+  str = string.gsub (str, "\n", "\r\n")
+  str = string.gsub (str, "([^%w ])",
+  function (c) return string.format ("%%%02X", string.byte(c)) end)
+  str = string.gsub (str, " ", "+")
+  return str
+end

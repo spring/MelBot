@@ -1,0 +1,45 @@
+function melon:GetInfo()
+  return {
+    name   = "Command Relay",
+    desc   = "Relays certain commands to other bots.",
+    author = "MelTraX"
+  }
+end
+
+local last = ""
+local executed = nil
+
+function melon:Initialize()
+  bot:AddCommand("relayadd", RelayAdd, "adds a relay to another bot - params: conn user command description")
+  bot:AddCommand("relayremove", RelayRemove, "removes a relay - params: command")
+  for k,v in pairs(config) do
+    RelayAdd({}, v.conn .. " " .. v.user .. " " .. k .. " " .. v.desc)
+  end
+end
+function melon:GotPM(from, message)
+  if executed ~= nil and from.user == executed.user then
+    bot:PM(last, message)
+  end
+end
+function RelayCommand(command, from, params)
+  local cmd = config[command]
+  if cmd ~= nil then
+    bot:Reply("relayed answer from " .. cmd.user ..":")
+    last = from
+    executed = cmd
+    if params == nil then
+      bot:PM(cmd, "!" .. command)
+    else
+      bot:PM(cmd, "!" .. command .. " " .. params)
+    end
+  end
+end
+function RelayAdd(from, params)
+  local conn, user, command, desc = SplitParameters(params, 4)
+  config[command] = { conn=tonumber(conn), user=user, desc=desc }
+  bot:AddCommand(command, function(...) RelayCommand(command, ...) end, "relayed to " .. user .. ": " .. desc)
+end
+function RelayRemove(from, params)
+  config[params] = nil
+  bot:RemoveCommand(params)
+end

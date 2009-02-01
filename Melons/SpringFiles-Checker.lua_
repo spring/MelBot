@@ -1,0 +1,28 @@
+function melon:GetInfo()
+  return {
+    name    = "SpringFiles File-Notifier",
+    desc    = "Checks SpringFiles for new files and reports them in #news.",
+    author  = "MelTraX"
+  }
+end
+function melon:Initialize()
+  if self.config.counter == nil then
+    self.config.counter = 1020
+  end
+  self.config.foundLast = true
+end
+function melon:Update(i)
+  if i % 300 == 0 or self.config.foundLast then
+    local content = http.request('http://spring.jobjol.nl/show_file.php?id='..self.config.counter)
+    if content and string.find(content, "<!--Table for the User Login form-->", 1, true) then
+      local _,_,title = string.find(content, "<title>(.*)</title>")
+      if title ~= '' then
+        bot:Say(1,'news', '/me * New file: '..title..' (http://spring.jobjol.nl/show_file.php?id='..self.config.counter..')')
+        self.config.counter = self.config.counter + 1
+        self.config.foundLast = true
+      else
+        self.config.foundLast = false
+      end
+    end
+  end
+end

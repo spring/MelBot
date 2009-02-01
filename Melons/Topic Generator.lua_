@@ -1,0 +1,29 @@
+function melon:GetInfo()
+  return {
+    name    = "Topic Generator",
+    desc    = "Creates a multiline topic (incomplete).",
+    author  = "MelTraX"
+  }
+end
+function melon:Initialize()
+  bot:AddCommand("multiline", Multiline, "generates a multiline topic - param: URL with source")
+end
+function Multiline(from, params)
+  if string.sub(params, -4) ~= ".txt" then
+    bot:Reply("That doesn't seem to be a txt file.")
+  else
+    local content = http.request(params)
+    if content == nil then
+      bot:Reply("Error while downloading. Check if the link works and try again.")
+    else
+      spaces = string.rep(" ", 300)
+      indent = "|  "
+      output = "'" .. spaces .. indent .. spaces .. indent
+      for word in string.gmatch(content, "([^\n\r]*)") do
+        output = output .. spaces .. indent .. word
+      end
+      output = output .. spaces .. indent .. spaces .. indent
+      print(output)
+    end
+  end
+end

@@ -1,0 +1,1106 @@
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------  
+
+
+function melon:GetInfo()
+  return {
+    name   = "StatsMelon",
+    desc   = "Retrieves CA Stats",
+    author = "[LCC]quantum"
+  }
+end
+
+
+--------------------------------------------------------------------------------
+-- Inits
+--------------------------------------------------------------------------------  
+
+
+local units
+local unitDefs
+local weaponDefs
+local allowed
+local roomSay = true
+local room = "ca"
+local name2IDTable
+
+superusers = {
+ "[LCC]quantum",
+ "[K]quantum",
+ "MelTraX",
+}
+
+--------------------------------------------------------------------------------
+-- Utils
+-------------------------------------------------------------------------------- 
+
+
+
+function ToSI(n) -- Adapted from IceUI. Thanks, Meltrax!
+  
+  if (type(n) == "string") then
+    print(n)
+  end
+  
+  if (not n) then
+    return "nil"
+  end
+  
+  local resultString
+  local exponent
+  local suffix
+  local siSuffixes = {"y", "z", "a", "f", "p", "n", "µ", "m", "", "k", "M",
+                       "G", "T", "P", "E", "Z", "Y" }
+  if (math.abs(n) < 10^27   and
+      math.abs(n) > 10^-27) then
+    n            = math.abs(n)
+    exponent     = n == 0 and 0 or math.log(n)/math.log(10)
+    suffix       = n == 0 and 0 or math.floor(exponent/3)
+    n            = (n + (0.5*10^(math.floor(exponent)-2))) / 10^(suffix*3)
+    n            = string.sub(n, 1, tonumber(n) > 100 and 3 or 4)
+    resultString = n..siSuffixes[suffix+9]
+  else
+    resultString = "0"
+  end
+  return resultString
+end
+
+
+local function Verify(from)
+  local grant
+  for _, user in pairs(superusers) do
+    if (from == user) then
+      grant = true
+    end
+  end
+  return grant
+end
+
+
+local function MakeName2IDTable(t)
+  local name2IDTable = {}
+  for i, v in pairs(t) do
+    name2IDTable[v.name] = v.id
+  end
+  return name2IDTable
+end
+--------------------------------------------------------------------------------
+-- Commands
+--------------------------------------------------------------------------------
+
+
+function melon:Initialize()
+  FBI          = config.FBI
+  unitDefs     = config.unitDefs
+  weaponDefs   = config.weaponDefs
+  name2IDTable = MakeName2IDTable(weaponDefs)
+  
+  bot:AddCommand("getfbi", GetFBI, 
+    "Downloads the specified fbi data file. "..
+    "Usage: !getfbi <url>")
+  bot:AddCommand("getunitdefs", GetUnitDefs, 
+    "Downloads the specified unitDef data file. "..
+    "Usage: !getunitdefs <url>")
+  bot:AddCommand("getweapondefs", GetWeaponDefs, 
+    "Downloads the specified weaponDef data file. "..
+    "Usage: !getweapondefs <url>")
+    
+  bot:AddCommand("savedata", SaveData, 
+    "Saves the downloaded data. "..
+    "Usage: !savedata fbi | unitdefs | weapondefs")
+  bot:AddCommand("loaddata", LoadData, 
+    "Loads saved data. "..
+    "Usage: !loaddata fbi | unitdefs | weapondefs")
+  
+  bot:AddCommand("fbistats", FBIStats, 
+    "Retrieves stats from the fbi files. "..
+    "Ex. !fbistats corstorm.buildTime")
+  bot:AddCommand("unitstats", UnitStats, 
+    "Retrieves stats from the unitDefs table. "..
+    "Ex. !unitstats corstorm.buildTime")
+  bot:AddCommand("weaponstats", WeaponStats, 
+    "Retrieves stats from the weaponDefs table. "..
+    "Ex. !weaponstats weaponDefs[1].maxRange")
+  
+  bot:AddCommand("unitinfo", UnitInfo,
+    "Prints an overview of the specified unit's stats. "..
+    "Ex. !unitinfo armcom")
+  bot:AddCommand("weaponinfo", WeaponInfo,
+    "Prints an overview of the specified weapon's stats. "..
+    "Usage: !weaponinfo <weaponID>")
+  
+  bot:AddCommand("statsdoline", DoLine,
+    "Loads the argument string. "..
+    "Usage: !statsdoline <chunk>")
+    
+  bot:AddCommand("ratios", Ratios,
+    "Displays unit ratios. "..
+    "Example: !ratios armcom")
+    
+  bot:AddCommand("weaponsoverview", WeaponsOverview,
+    "Displays a unit's weapons overwiew. "..
+    "Example: !weaponsoverview armcom")
+  
+  bot:AddCommand("damageinfo", DamageInfo,
+    "Displays a weapon's damage. "..
+    "Usage: !damageinfo <weaponID>")
+  
+  bot:AddCommand("nametoid", NameToID,
+    "Finds weapon ID by weapon name. "..
+    "Example: !nametoid armcom_laser")
+    
+  allowed = {
+  math = math, 
+  table = table, 
+  string = string, 
+  tostring = tostring,
+  next = next,
+  weaponDefs = weaponDefs,
+  unitDefs = unitDefs,
+}
+end
+
+
+function NameToID(from, name)
+  local id = name2IDTable[name]
+  if (roomSay) then
+    bot:Say(from, room, tostring(id))
+  else
+    bot:PM(from, tostring(id))
+  end
+end
+
+
+function GetFBI(from, params)
+  if (from.user == "[LCC]quantum") then
+    bot:PM(from, "downloading")
+    local data = assert(http.request(params))
+    local func = assert(loadstring(data))
+    FBI = func()
+    bot:PM(from, "done")
+  else
+    bot:PM(from, from.user.." has no permission to execute this command.")
+  end
+end
+
+
+function GetUnitDefs(from, params)
+  if (from.user == "[LCC]quantum") then
+    bot:PM(from, "downloading")
+    local data = assert(http.request(params))
+    local func = assert(loadstring(data))
+    unitDefs = func()
+    bot:PM(from, "done")
+  else
+    bot:PM(from, from.user.." has no permission to execute this command.")
+  end
+end
+
+
+function GetWeaponDefs(from, params)
+  if (from.user == "[LCC]quantum") then
+    bot:PM(from, "downloading")
+    local data = assert(http.request(params))
+    local func = assert(loadstring(data))
+    weaponDefs = func()
+    bot:PM(from, "done")
+  else
+    bot:PM(from, from.user.." has no permission to execute this command.")
+  end
+end
+
+
+function SaveData(from, params)
+  if (from.user == "[LCC]quantum") then
+    if (params == "fbi") then
+       config.FBI = FBI
+    elseif (params == "unitdefs") then
+      config.unitDefs = unitDefs
+    elseif (params == "weapondefs") then
+      config.weaponDefs = weaponDefs
+    end
+    bot:PM(from, "done")
+  else
+    bot:PM(from, from.user.." has no permission to execute this command.")
+  end
+end
+
+
+function LoadData(from, params)
+  if (from.user == "[LCC]quantum") then
+    if (params == "fbi") then
+      FBI = config.FBI
+      bot:PM(from, "done")
+    elseif (params == "unitdefs") then
+      unitDefs = config.unitDefs
+    elseif (params == "weapondefs") then
+      weaponDefs = config.weaponDefs
+    end
+    bot:PM(from, "done")
+  else
+    bot:PM(from, from.user.." has no permission to execute this command.")
+  end
+end
+
+
+function FBIStats(from, params)
+    local func = assert(loadstring("return "..params))
+    local env = units
+    setmetatable(env, {__index=allowed})
+    setfenv(func, env)
+    if (roomSay) then
+      bot:Say(from, room, tostring(func()))
+    else
+      bot:PM(from, tostring(func()))
+    end
+end
+
+
+function UnitStats(from, params)
+    local func = assert(loadstring("return "..params))
+    local env = unitDefs
+    setmetatable(env, {__index=allowed})
+    setfenv(func, env)
+    if (roomSay) then
+      bot:Say(from, room, tostring(func()))
+    else
+      bot:PM(from, tostring(func()))
+    end
+end
+
+
+function WeaponStats(from, params)
+  local func = assert(loadstring("return "..params))
+  local env = {}
+  setmetatable(env, {__index=allowed})
+  setfenv(func, env)
+  if (roomSay) then
+    bot:Say(from, room, tostring(func()))
+  else
+    bot:PM(from, tostring(func()))
+  end
+end
+
+
+function WeaponsOverview(from, params)
+  local lineArray = MakeWeaponsOverview(params)
+  for _, line in ipairs(lineArray) do
+    if (roomSay) then
+      bot:Say(from, room, line)
+    else
+      bot:PM(from, line)
+    end
+  end
+end
+
+
+function UnitInfo(from, params)
+  local lineArray = MakeUnitInfo(params)
+  for _, line in ipairs(lineArray) do
+    if (roomSay) then
+      bot:Say(from, room, line)
+    else
+      bot:PM(from, line)
+    end
+  end
+end
+
+
+function Ratios(from, params)
+  local lineArray = MakeRatios(params)
+  for _, line in ipairs(lineArray) do
+    if (roomSay) then
+      bot:Say(from, room, line)
+    else
+      bot:PM(from, line)
+    end
+  end
+end
+
+
+function WeaponInfo(from, params)
+  local lineArray = MakeWeaponInfo(params)
+  for _, line in ipairs(lineArray) do
+    if (roomSay) then
+      bot:Say(from, room, line)
+    else
+      bot:PM(from, line)
+    end
+  end
+end
+
+
+function DamageInfo(from, params)
+  local lineArray = MakeDamageInfo(params)
+  for _, line in ipairs(lineArray) do
+    if (roomSay) then
+      bot:Say(from, room, line)
+    else
+      bot:PM(from, line)
+    end
+  end
+end
+
+
+function DoLine(from, params)
+  if Verify(from.user) then
+    local func = assert(loadstring(params))
+    env = {
+      from = from,
+      weaponDefs = weaponDefs,
+      unitDefs = unitDefs,
+      FBI = FBI,
+    }
+    setmetatable(env, {__index = melon})
+    setfenv(func, env)
+    func()
+  else
+     bot:PM(from, from.user.." has no permission to execute this command.")
+  end
+end
+
+
+--------------------------------------------------------------------------------
+-- Unit Stats
+--------------------------------------------------------------------------------  
+
+function MakeUnitInfo(unit)
+  
+  local lineArray = {}
+  
+  local function Line(lineString)
+    table.insert(lineArray, lineString)
+  end
+  
+  local unitDef = unitDefs[unit]
+  
+  Line(unitDef.humanName)
+   -- Commander tooltips are "Commander".
+  if (unitDef.name ~= "armcom" and unitDef.name ~= "corcom") then
+    Line(unitDef.tooltip)
+  end
+  Line""
+
+  
+-- Resources -------------------------------------------------------------------
+
+
+  local energyMake     = unitDef.energyMake
+  local metalMake      = unitDef.metalMake
+  local energyStorage  = unitDef.energyStorage
+  local metalStorage   = unitDef.metalStorage
+  local energyUpkeep   = unitDef.energyUpkeep
+  local metalUpkeep    = unitDef.metalUpkeep
+  local extractRange   = unitDef.extractRange
+  local tidalGenerator = unitDef.tidalGenerator
+  local windGenerator  = unitDef.windGenerator
+  
+  Line"Resources"
+  
+  -- CA's windmills are scripted in Lua and have no windmill fbi tags.
+  if (unitDef.name == "armwin" or unitDef.name == "corwin") then
+    Line"- Wind generator"
+  end
+  
+  Line("- Energy cost: "..ToSI(unitDef.energyCost))
+  Line("- Metal cost: "..ToSI(unitDef.metalCost))
+  Line("- Build time: "..ToSI(unitDef.buildTime))
+  
+  
+  if (energyMake > 0.001) then
+    Line("- Energy production: "..ToSI(unitDef.energyMake))
+  end  
+  
+  
+  if (metalMake > 0.001) then
+    Line("- Metal production: "..ToSI(unitDef.metalMake))
+  end
+  
+  
+  if (energyStorage and energyStorage > 0.1) then
+    Line("- Energy storage: "..ToSI(energyStorage))
+  end
+  
+  
+  if (metalStorage > 0.1) then
+    Line("- Metal storage: "..ToSI(metalStorage))
+  end
+  
+  
+  if (energyUpkeep > 0.1) then
+    Line("- Energy upkeep: "..ToSI(energyUpkeep))
+  elseif (energyUpkeep < -0.1) then -- Solars use negative upkeep.
+    Line("- Energy production: "..ToSI(-energyUpkeep))
+  end
+  
+  
+  if (metalUpkeep > 0.1) then
+    Line("- Metal upkeep: "..ToSI(metalUpkeep))
+  end
+  
+  local extractsMetal = unitDef.extractsMetal
+  if (extractsMetal > 0.0000001) then
+    Line("- Metal extraction rate: "..ToSI(extractsMetal))
+  end
+  
+  if (extractRange > 0.1) then
+    Line("- Extract range: "..ToSI(extractRange))
+  end
+  
+  
+  if (tidalGenerator > 0.001) then
+    Line("- Tidal energy output: "..ToSI(tidalGenerator))
+  end
+  
+  if (windGenerator > 0.001) then
+    Line("- Eolian energy output: "..ToSI(windGenerator))
+  end
+  
+  
+-- Movement --------------------------------------------------------------------
+
+  
+  if (unitDef.canMove) then
+    Line""
+    Line"Movement"
+    
+    if (unitDef.canFly) then
+      Line"- Can Fly"
+    end
+    
+    if (unitDef.canSubmerge) then
+      Line"- Can submerge"
+    end
+    
+    if (not unitDef.transportByEnemy) then
+      Line"- Can't be transported by enemy"
+    end
+    
+    if (unitDef.hoverAttack) then
+      Line"- Gunship"
+    end
+    
+    if (unitDef.isBomber) then
+      Line"- Bomber"
+    end
+    
+    if (unitDef.isFighter) then
+      Line"- Fighter"
+    end
+    
+    Line("- Speed: "..ToSI(unitDef.speed/30)) -- So it's same unit as in FBI.
+    Line("- Turn rate: "..ToSI(unitDef.turnRate))
+    Line("- Acceleration: "..ToSI(unitDef.maxAcc))
+    Line("- Deceleration: "..ToSI(unitDef.maxDec)) -- TODO: check if brakerate 
+    Line("- Mass: "..ToSI(unitDef.mass))           -- is really divided by 10.
+    
+    local maxFuel = unitDef.maxFuel
+    if (maxFuel > 0.01) then
+      Line("- Fuel capacity: "..maxFuel)
+    end
+    
+  end
+  
+  
+-- Weapons and Defense --------------------------------------------------------- 
+  
+  
+  local armoredMultiple = unitDef.armoredMultiple
+  local maxWeaponRange  = unitDef.maxWeaponRange
+  local autoHeal        = unitDef.autoHeal
+  local idleAutoHeal    = unitDef.idleAutoHeal
+  
+  Line""
+  Line"Weapons and defense"
+
+  if (unitDef.canKamikaze) then
+    Line"- Kamikaze"
+  end
+  
+  if (unitDef.canDropFlare) then
+    Line"- Can drop flare"
+  end
+  
+  if (unitDef.noAutoFire) then
+    Line"- Does not fire automatically"
+  end
+  
+  if (not unitDef.reclaimable) then
+    Line"- Can't be reclaimed"
+  end
+  
+  if (unitDef.hasShield) then
+    Line"- Has shield"
+  end
+  
+  Line("- Health: "..ToSI(unitDef.health))
+  if (armoredMultiple < 0.99) then
+    Line("- Health while closed: "..ToSI(1/armoredMultiple*unitDef.health))
+  end
+  
+  if (maxWeaponRange and maxWeaponRange > 0.1) then
+    Line("- Maximum range: "..ToSI(maxWeaponRange))
+  end
+  
+  if (unitDef.weapons[1]) then
+    local totalDPS = 0
+    for i, weapon in ipairs(unitDef.weapons) do
+      local weaponID = weapon.weaponDef
+      local weaponDef = weaponDefs[weaponID]
+      local damage = weaponDef.damages.damages["else"]
+      local reload = weaponDef.reload                  
+      local salvo = weaponDef.salvoSize
+      local name = weaponDef.name
+      local DPS = damage*salvo/reload
+      totalDPS = totalDPS + DPS
+    end
+    Line("- Damage per second: "..ToSI(totalDPS))    
+  end
+  
+  if (unitDef.canDropFlare) then
+    Line("- Flare efficiency: "..ToSI(unitDef.flareEfficiency))
+    Line("- Flare reload time: "..ToSI(unitDef.flareReloadTime))
+    Line("- Flares dropped per salvo: "..ToSI(unitDef.flareSalvoSize))
+    Line("- Flare lifetime: "..ToSI(unitDef.flareTime))
+  end
+
+  if (autoHeal > 0.1) then
+    Line("- Autoheal: "..ToSI(autoHeal))
+  end
+
+  if (idleAutoHeal > 0.1) then
+    local a = ToSI(idleAutoHeal+autoHeal)
+    local t = ToSI(unitDef.idleTime/100)
+    Line("- Autoheal is "..a.." after "..t)
+    Line("  seconds of inactivity.")
+  end
+
+  
+-- Builder Attributes ----------------------------------------------------------
+  
+  
+  local buildDistance = unitDef.buildDistance
+  local buildSpeed    = unitDef.buildSpeed
+  local repairSpeed   = unitDef.repairSpeed
+  
+  if (unitDef.builder or unitDef.isFactory) then
+    Line""
+    Line"Builder Attributes"
+    
+    if (not unitDef.canBuild) then
+      Line"- Can't build"
+    end
+    
+    if (unitDef.isFactory) then
+      Line"- Factory"
+    end
+    
+    if (unitDef.needGeo) then
+      Line"- Geothermal plant"
+    end
+    
+    if (not unitDef.canAssist) then
+      Line"- Can't assist"
+    end
+    
+    if (unitDef.canCapture) then
+      Line"- Can capture"
+    end
+    
+    if (not unitDef.canReclaim) then
+      Line"- Can't reclaim"
+    end
+    
+    if (not unitDef.canRepair) then
+      Line"- Can't repair"
+    end
+    
+    if (unitDef.canResurrect) then
+      Line"- Can resurrect"
+    end
+    
+    if (unitDef.canSelfRepair) then
+      Line"- Can self repair"
+    end
+    
+    if (not unitDef.canRestore) then
+      Line"- Can't restore ground"
+    end
+    
+    if (buildDistance > 0.1) then
+      Line("- Build distance: "..ToSI(buildDistance))
+    end
+    
+    if (buildSpeed > 0.1) then
+      Line("- Build speed: "..ToSI(buildSpeed))
+    end
+    
+    if (repairSpeed > 0.1) then
+      Line("- Repair speed: "..ToSI(repairSpeed))
+    end
+    
+    if (unitDef.canCapture) then
+      Line("- Capture speed: "..ToSI(unitDef.captureSpeed))
+    end
+    
+    if (unitDef.canRestore) then
+      Line("- Terraform speed: "..ToSI(unitDef.terraformSpeed))
+    end
+  end
+  
+  
+-- Sensors and Dissimulation ---------------------------------------------------
+  
+  
+  local radarRadius      = unitDef.radarRadius
+  local sonarRadius      = unitDef.sonarRadius
+  local jammerRadius     = unitDef.jammerRadius
+  local sonarJamRadius   = unitDef.sonarJamRadius
+  local seismicRadius    = unitDef.seismicRadius
+  local seismicSignature = unitDef.seismicSignature
+  
+  Line""
+  Line"Sensors and Dissimulation"
+  
+  if (unitDef.canCloak) then
+    Line"- Can cloak"
+  end
+  
+  if (unitDef.stealth) then
+    Line"- Is stealthy"
+  end
+  
+  if (unitDef.hideDamage) then
+    Line"- Damage is hidden"
+  end
+  
+  if (not unitDef.decloakOnFire) then
+    Line"- Can fire while cloaked"
+  end
+  
+  Line("- Line of sight radius: "..ToSI(unitDef.losRadius))
+  
+  if (radarRadius > 0.1) then
+    Line("- Radar range: "..ToSI(radarRadius))
+  end
+  
+  if (sonarRadius > 0.1) then
+    Line("- Sonar range: "..ToSI(sonarRadius))
+  end
+  
+  if (seismicRadius > 0.1) then
+    Line("- Seismic detector range: "..ToSI(seismicRadius))
+  end
+  
+  if (jammerRadius > 0.1) then
+    Line("- Jammer range: "..ToSI(jammerRadius))
+  end
+  
+  if (sonarJamRadius > 0.1) then
+    Line("- Sonar jammer range: "..ToSI(sonarJamRadius))
+  end
+  
+  
+  if (seismicSignature > 0.1) then
+    Line("- Seismic signature: "..ToSI(seismicSignature))
+  end
+  
+  if (unitDef.canCloak) then
+    Line("- Stationary cloak cost: "..ToSI(unitDef.cloakCost))
+    Line("- Moving cloak cost: "..ToSI(unitDef.cloakCostMoving))
+    Line("- Decloak distance: "..ToSI(unitDef.decloakDistance))
+  end
+  
+  
+-- Transport -------------------------------------------------------------------
+  
+  
+  local transportCapacity = unitDef.transportCapacity
+  if (unitDef.transportCapacity > 0.1) then
+    
+    Line""
+    Line"Transport"
+    
+    if (unitDef.isFirePlatform) then
+      Line"- Transported units can fire"
+    end
+    Line("- Transport unit capacity: "..ToSI(unitDef.transportCapacity))
+    Line("- Transport mass capacity: "..ToSI(unitDef.transportMass))
+    Line("- Maximum transported unit size: "..ToSI(unitDef.transportSize))
+    Line("- Loading radius: "..ToSI(unitDef.loadingRadius))
+
+  end
+  
+  
+-- Other -----------------------------------------------------------------------
+
+    
+  Line""
+  Line"Other"
+  Line("- Unit size: "..ToSI(unitDef.xsize * unitDef.ysize))
+  Line("- Unit code: "..unitDef.name)
+
+  return lineArray
+end
+
+
+--------------------------------------------------------------------------------
+-- Weapon Stats
+--------------------------------------------------------------------------------  
+
+
+function MakeWeaponInfo(weaponID)
+
+  
+  local lineArray = {}
+  local weaponDef = weaponDefs[tonumber(weaponID)]
+  
+  local function Line(lineString)
+    table.insert(lineArray, lineString)
+  end
+ 
+  Line("Type: "..weaponDef.type)
+  
+  if (not (weaponDef.type == "AircraftBomb")) then
+    Line("Range: "..ToSI(weaponDef.range))
+    -- Line("Height advantage: "..ToSI(weaponDef.heightmod)) FIXME
+    Line("Accuracy")
+    if (weaponDef.accuracy == 0) then
+      Line" - while stationary: perfect."
+    else
+      Line(" - while stationary: "..ToSI(weaponDef.accuracy)) -- Use inverse? 
+    end
+    if (weaponDef.accuracy == 0) then
+      Line" - while moving: perfect."
+    else
+      Line(" - while moving: "..ToSI(weaponDef.accuracy)) 
+    end
+    if (weaponDef.salvoSize > 1) then
+      if (weaponDef.sprayAngle == 0) then
+        Line" - of salvo: perfect."
+      else
+        Line(" - of salvo: "..ToSI(weaponDef.sprayAngle)) 
+      end
+    end
+  end
+  
+  if (weaponDef.targetMoveError and weaponDef.targetMoveError > 0) then
+    local s = "Error in targeting moving units: %.2f"
+    Line(string.format(s, weaponDef.targetMoveError))
+  end
+  
+  Line("Reload time: "..ToSI(weaponDef.reload))
+  
+  if (weaponDef.salvoSize > 1) then
+    Line(string.format("Salvo size: %d", weaponDef.salvoSize))
+    Line("Salvo delay: "..ToSI(weaponDef.salvoDelay))
+  end
+  
+  local damage = weaponDef.damages.damages["else"] -- Damage by default.
+  local dps = damage*weaponDef.salvoSize/weaponDef.reload
+  
+  Line(string.format("Damage per shot: %d", damage))
+  Line(string.format("Damage per second: %d", dps))
+  
+  Line("Area of effect: "..ToSI(weaponDef.areaOfEffect))
+  Line("Shockwave speed: "..ToSI(weaponDef.explosionSpeed))
+  
+  if (weaponDef.edgeEffectiveness and weaponDef.edgeEffectiveness > 0) then
+    local s = "Damage factor at the edge of the area of effect: %.2f"
+    Line(string.format(s, weaponDef.edgeEffectiveness))
+  end
+  
+  if (weaponDef.coverageRange > 0) then
+    Line("Anti-nuke protection range "..ToSI(weaponDef.coverageRange))
+  end
+  
+  if (weaponDef.damages.impulseFactor ~= 1 and 
+      weaponDef.damages.impulseFactor ~= 0) then
+    Line("Impulse factor: "..ToSI(weaponDef.damages.impulseFactor))
+    Line("Impulse boost: "..ToSI(weaponDef.damages.impulseBoost))
+    Line"N.B. Impulse = (Damage + Impulse Boost) * Impulse Factor" -- Check
+  end
+  
+  if (weaponDef.type == "MissileLauncher" or
+      weaponDef.type == "StarburstLauncher") then
+    if (weaponDef.startVelocity) then
+      Line("Missile start velocity: "..ToSI(weaponDef.startVelocity))
+      Line("Missile acceleration: "..ToSI(weaponDef.weaponAcceleration))
+      Line("Missile maximum velocity: "..ToSI(weaponDef.maxVelocity))
+    else
+      Line("Missile velocity: "..ToSI(weaponDef.maxVelocity))
+    end
+    
+    if (weaponDef.trajectoryHeight > 0) then
+      Line("Missile trajectory height: "..ToSI(weaponDef.trajectoryHeight))
+    end 
+    
+    if (weaponDef.wobble > 0) then
+      Line("Missile wobble factor: "..ToSI(weaponDef.wobble))
+    end
+  end
+  
+  if (weaponDef.projectileSpeed) then
+    Line("Projectile speed: "..ToSI(weaponDef.projectileSpeed))
+  end
+  
+  if (weaponDef.type == "BeamLaser") then
+    Line("Projectile speed: "..ToSI(weaponDef.maxVelocity))
+  end
+  
+  if (not weaponDef.canAttackGround) then
+    Line"Can't be forced to fire on groud spot."
+  end
+  
+  if (weaponDef.stockpile) then
+    Line"Ammunition must be stockpiled."
+  end
+  
+  if (weaponDef.collisionNoFeature) then
+    Line"Doesn't collide with terrain features or wrecks."
+  end
+  
+  if (weaponDef.collisionNoFriendly) then
+    Line"Doesn't collide with friendly units."
+  end
+  
+  if (not weaponDef.avoidFriendly) then
+    Line"Doesn't try to avoid hitting friendlies."
+  end  
+  
+  if (weaponDef.tracks) then
+    Line"Tracks."  -- FIXME: Explain
+  end
+  
+  if (weaponDef.guided) then
+    Line"Is guided."
+  end
+  
+  if (weaponDef.vlaunch) then
+    Line"Is launched vertically."
+  end
+  
+  if (weaponDef.paralyzer) then
+    Line"Deals paralyze damage."
+    local s = "Paralyze time: %d"
+    Line(string.format(s, weaponDef.damages.paralyzeDamageTime))
+  end
+  
+  if (weaponDef.noSelfDamage) then
+    Line"No self damage."
+  end
+  
+  if (weaponDef.gravityAffected) then
+    Line"Ballistic trajectory."
+  end
+  
+  return lineArray
+end
+
+
+--------------------------------------------------------------------------------
+-- Damage Info
+--------------------------------------------------------------------------------
+
+
+function MakeDamageInfo(weaponID)
+  
+  local lineArray = {}
+  
+  local weaponDef = weaponDefs[tonumber(weaponID)]
+  local damages = weaponDef.damages.damages -- damage table
+  
+  local function Line(lineString)
+    table.insert(lineArray, lineString)
+  end
+  
+  Line(string.rep("-", 1+14+9+9))
+  Line(string.format("|%-13s|%8s|%8s|", "Category", "Damage","DpS*"))
+  Line(string.rep("-", 1+14+9+9))
+  
+  for category, damage in pairs(damages) do
+    local dps = damage*weaponDef.salvoSize/weaponDef.reload
+    Line(string.format("|%-13s|%8d|%8d|", category, damage, dps))
+  end
+  
+  Line(string.rep("-", 1+14+9+9))
+  
+  Line"* DpS: Damage per Second, estimated."
+  
+  return lineArray
+end
+
+
+--------------------------------------------------------------------------------
+-- Ratios Info
+--------------------------------------------------------------------------------
+
+
+function MakeRatios(unitName)
+  
+  local lineArray = {}
+  
+  local unitDef = unitDefs[unitName]
+  local weapons =  unitDef.weapons
+  
+  local function Line(lineString)
+    table.insert(lineArray, lineString)
+  end
+  
+  local MC  = unitDef.metalCost
+  local EC  = unitDef.energyCost
+  local BT  = unitDef.buildTime
+  local GC  = EC/80+MC
+  local HP  = unitDef.health
+  local AH  = unitDef.autoHeal
+  local IAH = unitDef.idleAutoHeal
+  local BS  = unitDef.buildSpeed
+  
+  Line"Cost"
+  Line("- Metal Cost (MC): "..ToSI(MC))
+  Line("- Energy Cost (EC): "..ToSI(EC))
+  Line("- Build Time (BT): "..ToSI(BT))
+  Line("- Metal Drain (MC/BT): "..ToSI(MC/BT))
+  Line("- Energy Drain (EC/BT): "..ToSI(EC/BT))
+  Line("- Energy to Metal Ratio (EC/MC): "..ToSI(EC/MC))
+  Line("- Adjusted Cost (GC = EC/80+MC): "..ToSI(GC))
+  Line(string.format("- Energy part of cost (EC/GC): %.2f", EC/80/GC))
+  Line""
+  
+  Line"Defense"
+  Line("- Health (HP): "..ToSI(HP))
+  Line("- HP/MC: "..ToSI(HP/MC))
+  Line("- HP/GC: "..ToSI(HP/MC))
+  Line("- Complete regeneration time: "..ToSI(HP/(AH+IAH)).."s")
+  Line""
+  
+  if (unitDef.canBuild) then
+    Line"Build Ratios"
+    Line("- Build Speed (BS): "..ToSI(BS))
+    Line("- BS/MC: "..ToSI(BS/MC))
+    Line("- BS/GC: "..ToSI(BS/GC))
+    Line""
+  end
+  
+  if (unitDef.energyMake > 0.1) then
+    Line"Resource Production"
+    Line("- Energy production: "..ToSI(unitDef.energyMake))
+    Line("- Break-even time: "..ToSI(GC*80/unitDef.energyMake).."s")
+    Line""
+  end
+  
+  if (unitDef.energyUpkeep < -0.1) then
+    Line"Resource Production"
+    Line("- Energy production: "..ToSI(-unitDef.energyUpkeep))
+    Line("- Break-even time: "..ToSI(-GC*80/unitDef.energyUpkeep).."s")
+    Line""
+  end
+  
+  if (unitDef.weapons[1]) then
+    Line"Weapons"
+    local totalDPS = 0
+    local width = 1+21+9+9+9+9
+    local s = "  |%-20s|%8s|%8s|%8s|%8s|"
+    
+    Line("  "..string.rep("-", width))
+    Line(string.format(s, "Weapon", "DpS", "DpS/MC", "DpS/EC", "DpS/GC"))
+    Line("  "..string.rep("-", width))
+    
+    for i, weapon in ipairs(unitDef.weapons) do
+      
+      local weaponID  = weapon.weaponDef
+      local weaponDef = weaponDefs[weaponID]
+      local damage    = weaponDef.damages.damages["else"]
+      local reload    = weaponDef.reload
+      local salvo     = weaponDef.salvoSize
+      local name      = weaponDef.name
+      local DPS       = damage*salvo/reload
+      totalDPS        = totalDPS + DPS
+      
+      local s = "  |%-20s|%8d|%8s|%8s|%8s| "
+      s = string.format(s, name, DPS, ToSI(DPS/MC), ToSI(DPS/EC), ToSI(DPS/GC))
+      Line(s)
+    
+    end
+    Line("  "..string.rep("-", width))
+    
+    local function f(n)
+      return ToSI(totalDPS/n)
+    end
+    s = "  |%-20s|%8s|%8s|%8s|%8s|"
+    s = string.format(s, "Total", ToSI(totalDPS), f(MC), f(EC), f(GC))
+    Line(s)
+    Line("  "..string.rep("-", width))
+    
+  end
+  return lineArray
+end
+
+
+--------------------------------------------------------------------------------
+-- Weapons Overview
+--------------------------------------------------------------------------------
+
+
+function MakeWeaponsOverview(unitName)
+  
+  local lineArray = {}
+  local unitDef = unitDefs[unitName]
+  local weapons =  unitDef.weapons
+  
+  local function Line(lineString)
+    table.insert(lineArray, lineString)
+  end
+
+  local width = 1+21+8+9+12+13+10+7+7+10
+  
+  Line(" "..string.rep("-", width))
+  local s = " |%-20s|%7s|%8s|%11s|%12s|%9s|%6s|%6s|%9s| "
+  s = string.format(s, 
+    "Weapon", 
+    "Range",
+    "Damage",
+    "Salvo size",
+    "Reload Time",
+    "Accuracy",
+    "AoE",
+    "DpS",
+    "DpS/cost"      
+  )
+  Line(s)
+  Line(" "..string.rep("-", width))
+  
+  for i, weapon in ipairs(unitDef.weapons) do
+    
+    local weaponID = weapon.weaponDef
+    local weaponDef = weaponDefs[weaponID]
+    
+    local damage = weaponDef.damages.damages["else"] -- Damage by default.
+    local DpS = damage*weaponDef.salvoSize/weaponDef.reload
+    
+    local s = " |%-20s|%7s|%8d|%11d|%12s|%9s|%6s|%6s|%9s| "
+    s = string.format(s, 
+      weaponDef.name, 
+      ToSI(weaponDef.range),
+      weaponDef.damages.damages["else"],
+      weaponDef.salvoSize,
+      ToSI(weaponDef.reload),
+      ToSI(weaponDef.accuracy + weaponDef.sprayAngle),
+      ToSI(weaponDef.areaOfEffect),
+      ToSI(DpS),
+      ToSI(DpS/(weaponDef.energyCost/80+weaponDef.metalCost))
+    )
+      
+    Line(s)
+  
+  end
+  
+  Line(" "..string.rep("-", width))
+  
+  return lineArray
+end
+
+
+
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------  

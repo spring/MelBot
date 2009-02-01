@@ -1,0 +1,37 @@
+function melon:GetInfo()
+  return {
+    name   = "Ladder",
+    desc   = "Provides several commands to interface with the ladder API.",
+    author = "MelTraX"
+  }
+end
+function melon:Initialize()
+  bot:AddCommand("ladderlist", List, "displays a list of all ladders")
+  bot:AddCommand("rank", Rank, "displays the rank of a player - params: ladderID playername")
+end
+function List(from, params)
+  local content = http.request("http://blendax.informatik.uni-bremen.de/jan/spring/ladder/lobby/ladderlist.php")
+  if content ~= nil then
+    for word in string.gmatch(content, "([^\n]*)\n") do
+      bot:Reply(word)
+    end
+  end
+end
+function Rank(from, params)
+  if params == nil then
+    bot:Reply("Usage: !rank <ladderID> <playerName>")
+  else
+    local ladder, player = SplitParameters(params, 2)
+    if ladder == nil or player == nil then
+      bot:Reply("Usage: !rank <ladderID> <playerName>")
+      return
+    end
+    players = { SplitParameters(player) }
+    for _,v in ipairs(players) do
+      local gets = "ladder=" .. ladder .. "&players[]=" .. v
+      local content = http.request("http://blendax.informatik.uni-bremen.de/jan/spring/ladder/lobby/ranking.php?" .. gets)
+      local name, rating, rank = SplitParameters(content)
+      bot:Reply(name .. " is on rank " .. rank .. " with a rating of " .. rating)
+    end
+  end
+end
