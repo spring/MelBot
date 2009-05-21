@@ -35,7 +35,7 @@ function FromHelp(from, params)
   bot:Reply("values anymore. They are a table with host, bot and user because.")
 end
 function DoLine(from, params)
-  if from.user == "MelTraX" or from.user == "[LCC]quantum" then
+  if from.conn == 1 and (from.user == "MelTraX" or from.user == "[LCC]quantum") then
     local func = loadstring(params)
     local env = { from=from, params=params }
     setmetatable(env, { __index=melon })
@@ -50,7 +50,7 @@ function DoLine(from, params)
   end
 end
 function Echo(from, params)
-  if from.user == "MelTraX" or from.user == "[LCC]quantum" then
+  if from.conn == 1 and (from.user == "MelTraX" or from.user == "[LCC]quantum") then
     local func = loadstring("return " .. params)
     local env = { from=from, params=params }
     setmetatable(env, { __index=melon })
@@ -82,7 +82,7 @@ function Reload(from, params)
   connectionManager:GetMelons()
 end
 function Load(from, params)
-  if from.user == "MelTraX" or from.user == "[LCC]quantum" then
+  if from.conn == 1 and (from.user == "MelTraX" or from.user == "[LCC]quantum") then
     if string.sub(params, -4) ~= ".lua" then
       bot:Reply("That doesn't seem to be a Lua file.")
     else
@@ -105,12 +105,14 @@ function Load(from, params)
   end
 end
 function Delete(from, params)
-  for _,v in ipairs(connectionManager.melons) do
-    local mI = connectionManager.melonInfos[v]
-    if mI.name == params and mI.author == from.user then
-      os.remove("Melons/" .. mI.filename)
-      Reload(from, params)
-      return
+  if from.conn == 1 and (from.user == "MelTraX" or from.user == "[LCC]quantum") then
+    for _,v in ipairs(connectionManager.melons) do
+      local mI = connectionManager.melonInfos[v]
+      if mI.name == params and mI.author == from.user then
+        os.remove("Melons/" .. mI.filename)
+        Reload(from, params)
+        return
+      end
     end
   end
 end

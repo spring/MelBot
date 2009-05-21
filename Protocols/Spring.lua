@@ -6,8 +6,9 @@ function protocol:GetInfo()
   }
 end
 
-function protocol:Initalize()
+function protocol:Initialize()
   self.connected = false
+  self.linesPerSecond = 10
 end
 function protocol:Login()
   self.conn = socket.tcp()
@@ -33,13 +34,15 @@ function protocol:Say(channel, message)
   else
     self:Send("SAY " .. channel .. " " .. message .. "\n")
   end
-  socket.sleep(0.1)
 end
 function protocol:PM(to, message)
   self:Send("SAYPRIVATE " .. to .. " " .. message .. "\n")
-  socket.sleep(0.1)
 end
 function protocol:Update(update)
+  if not self.conn then
+    self:Login()
+  end
+
   if update % 10 == 0 then
     self:Send("PING\n")
   end
@@ -73,15 +76,23 @@ function protocol:Update(update)
         connectionManager:RemoveConnection(self.connID)
         return
       elseif cmd == "DENIED" then
-        print(self.connID .. " Notice: We've been banned. (" .. params .. ")")
-        connectionManager:RemoveConnection(self.connID)
-        return
+        print(self.connID .. " Notice: We've been denied to login. (" .. params .. ")")
+        if params:match("logged in") then
+          self:Shutdown()
+          return
+        else
+          print(self.connID .. " Unknown reason: Shutting down.")
+          connectionManager:RemoveConnection(self.connID)
+          return
+        end
       end
     end
   end
 end
 function protocol:Shutdown()
+  self.connected = false
   self.conn:close()
+  self.conn = nil
 end
 
 function protocol:Send(msg)

@@ -31,7 +31,6 @@ function protocol:Say(channel, message)
   else
     self:Send("PRIVMSG #" .. channel .. " :" .. message .. "\n")
   end
-  socket.sleep(1)
 end
 function protocol:PM(to, message)
   --self:Send("PRIVMSG #swp :" .. message .. "\n")
@@ -41,11 +40,13 @@ function protocol:Update(update)
   if update % 10 == 0 then
     self:Send("PING " .. self.config.host .. "\n")
   end
+
   if self.loggedIn and update == self.loggedIn + 10 then
     for _,v in ipairs(self.config.channels) do
       self:Join(v)
     end
   end
+
   while true do
     local input, err = self:Receive()
     if update % 30 == 0 and (err ~= nil and err ~= "timeout" or not self.loggedIn) then

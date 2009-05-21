@@ -49,6 +49,30 @@ function connectionManager:AddConnection(index, config)
     setmetatable(newConn, { __index=prot })
     newConn.config = config
     newConn.connID = index
+
+    -- some wrappers for output buffers
+    for _,func in ipairs({ "Say", "PM" }) do
+      if type(newConn[func]) == "function" then
+        local outputBuffer   = {}
+        local OriginalFunc   = newConn[func]
+        local OriginalUpdate = newConn.Update
+        newConn[func] = function(...)
+          table.insert(outputBuffer, {...})
+        end
+        newConn.Update = function(...)
+          for i=1,(newConn.linesPerSecond or 1) do
+            if #outputBuffer > 0 then
+              OriginalFunc(unpack(table.remove(outputBuffer, 1)))
+            end
+          end
+
+          if type(OriginalUpdate) == "function" then
+            OriginalUpdate(...)
+          end
+        end
+      end
+    end
+
     table.insert(self.connections, newConn)
     self:SecureCall(newConn, "Initialize")
     self:SecureCall(newConn, "Login")
@@ -56,14 +80,11 @@ function connectionManager:AddConnection(index, config)
 end
 function connectionManager:RemoveConnection(index)
   self:SecureCall(self.connections[index], "Shutdown")
-  table.remove(self.connections, index)
-  for i,v in ipairs(self.connections) do
-    v.connID = i
-  end
-  if #self.connections == 0 then
+  self.connections[index] = nil
+  if table.count(self.connections) == 0 then
     print("No connections left. Exiting...")
     connectionManager:Distribute("Shutdown")
-    table.save(config, "config.lua")
+    config:save("config.lua")
     os.exit(1)
   end
 end
@@ -231,7 +252,7 @@ function connectionManager:Said(channel, from, message)
   end
 end
 function connectionManager:Distribute(functionName, ...)
-  for _,connection in ipairs(self.connections) do
+  for _,connection in pairs(self.connections) do
     self:SecureCall(connection, functionName, ...)
   end
   for _,melon in ipairs(self.melons) do
@@ -406,6 +427,13 @@ table.removeByValue = function(tbl, value)
     end
   end
 end
+table.count = function(tbl)
+  local i = 0
+  for _,_ in pairs(tbl) do
+    i = i + 1
+  end
+  return i
+end
 
 Include("system.lua")
 Include("savetable.lua")
@@ -416,6 +444,6 @@ while true do
   socket.sleep(1)
   if os.date("%X") == "16:08:00" or os.date("%X") == "04:08:00" then
     print("Automatic restart")
-    os.exit(0)
+    callouts["Quit"](0)
   end
 end

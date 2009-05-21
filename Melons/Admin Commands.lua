@@ -128,5 +128,7 @@ function Restart(from, params)
   bot:Quit(0)
 end
 function Quit(from, params)
-  bot:Quit(1)
+  if from.conn == 1 and (from.user == "MelTraX" or from.user == "[LCC]quantum") then
+    bot:Quit(1)
+  end
 end
