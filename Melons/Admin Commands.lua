@@ -51,7 +51,7 @@ function Reconnect(from, params)
   conn:Login()
 end
 function ListConnections(from, params)
-  for i,v in ipairs(connectionManager.connections) do
+  for i,v in pairs(connectionManager.connections) do
     local cI = v.config
     bot:Reply(i .. " - Protocol: " .. cI.protocol .. ", Host: " .. cI.host .. ", User: " .. cI.user .. ", Channels: " .. table.concat(cI.channels, ", "))
   end
