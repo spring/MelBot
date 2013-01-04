@@ -1,0 +1,8 @@
+MelBot is a lobby bot for the spring lobby system at http://springrts.com
+
+also see https://github.com/spring/LobbyProtocol
+
+Setup on Ubuntu:
+
+apt-get install lua5.1 liblua5.1-filesystem0 liblua5.1-socket2
+
