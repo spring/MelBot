@@ -1,7 +1,7 @@
 return {
 	connections = {
 		[1] = {
-			host = "taspringmaster.clan-sy.com",
+			host = "lobby.springrts.com",
 			password = "your password hash here",
 			port = 8200,
 			protocol = "Spring",
