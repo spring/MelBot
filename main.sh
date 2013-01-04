@@ -1,4 +1,5 @@
 #!/bin/sh
 while lua main.lua; do
-  echo 'restarting...'
+	echo 'restarting...'
+	sleep 1
 done
