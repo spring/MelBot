@@ -442,8 +442,4 @@ connectionManager:Initialize()
 while true do
   connectionManager:Update()
   socket.sleep(1)
-  if os.date("%X") == "16:08:00" or os.date("%X") == "04:08:00" then
-    print("Automatic restart")
-    callouts["Quit"](0)
-  end
 end
